@@ -1,72 +1,88 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { Plus, Users, Building2, Bell, ArrowRight, LogOut, Loader2, Compass } from "lucide-react";
+import { motion } from "framer-motion";
+import type { Variants } from "framer-motion";
 import toast from "react-hot-toast";
-import { LogOut, Plus, Building2, Users, Mail, LayoutDashboard, Loader2, ArrowUpRight, Zap, Globe, Shield } from "lucide-react";
+import api from "../../api/axios";
 import { useAuth } from "../../context/AuthContext";
-import { organizationsAPI } from "../../api/organizations.api";
 import type { Organization } from "../../types";
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [orgs, setOrgs] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { loadData(); }, []);
-  const loadData = async () => { try { const r = await organizationsAPI.getAll(); setOrganizations(r.data.data || []); } catch (e) { console.error(e); } finally { setLoading(false); } };
+  useEffect(() => {
+    const fetchOrgs = async () => {
+      try {
+        const res = await api.get('/organizations');
+        setOrgs(res.data.data || []);
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to load organizations");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchOrgs();
+  }, []);
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
+  const container: Variants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const item: Variants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  };
+
+  // Kalkulasi total member (dummy fallback jika api belum support totalMember)
+  const totalMembers = orgs.reduce((acc, org) => acc + (org.memberCount || 1), 0);
 
   const stats = [
-    { icon: Building2, label: "Organizations", value: organizations.length, color: "from-blue-500 to-blue-600", bg: "bg-blue-100", iconColor: "text-blue-600" },
-    { icon: Users, label: "Total Members", value: organizations.reduce((s, o) => s + (o.memberCount || 0), 0), color: "from-emerald-500 to-teal-600", bg: "bg-emerald-100", iconColor: "text-emerald-600" },
-    { icon: Mail, label: "Pending Invites", value: "0", color: "from-amber-500 to-orange-600", bg: "bg-amber-100", iconColor: "text-amber-600" },
+    { name: "My Organizations", value: orgs.length.toString(), icon: Building2, color: "text-indigo-400", bg: "bg-indigo-500/10" },
+    { name: "Total Members", value: totalMembers.toString(), icon: Users, color: "text-emerald-400", bg: "bg-emerald-500/10" },
+    { name: "Pending Invites", value: "0", icon: Bell, color: "text-amber-400", bg: "bg-amber-500/10" },
   ];
 
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      <div className="text-center">
-        <div className="relative mx-auto w-24 h-24 mb-6">
-          <div className="absolute inset-0 bg-blue-400 rounded-full blur-2xl opacity-30 animate-pulse"></div>
-          <Loader2 className="w-24 h-24 text-blue-500 animate-spin relative z-10" />
-        </div>
-        <p className="text-gray-500 font-semibold text-lg">Loading your dashboard...</p>
-      </div>
-    </div>
-  );
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/50 to-indigo-50/30">
+    <div className="min-h-screen bg-[#0f172a] text-slate-200 selection:bg-indigo-500/30 font-sans pb-20">
       {/* Navbar */}
-      <nav className="bg-white/70 backdrop-blur-xl shadow-sm border-b border-white/50 sticky top-0 z-50">
+      <nav className="sticky top-0 z-50 backdrop-blur-xl bg-slate-900/60 border-b border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo */}
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl blur-lg opacity-50"></div>
-                <div className="relative w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-xl">
-                  <Zap className="w-6 h-6 text-white" />
-                </div>
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <Compass className="w-5 h-5 text-white" />
               </div>
-              <div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">DevOrg</h1>
-                <p className="text-xs text-gray-400 font-medium">Management Platform</p>
-              </div>
+              <span className="font-bold text-xl tracking-tight text-slate-100">DevOrg</span>
             </div>
-
-            {/* User Area */}
-            <div className="flex items-center gap-3">
-              <div className="hidden sm:flex items-center gap-3 bg-white/80 rounded-xl px-4 py-2 shadow-sm border border-gray-100">
-                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold shadow-md">
-                  {user?.name?.charAt(0)?.toUpperCase() || "U"}
+            <div className="flex items-center gap-4">
+              <div className="hidden md:flex items-center gap-3 mr-4">
+                <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-sm font-bold text-indigo-400 uppercase">
+                  {user?.name?.charAt(0) || 'U'}
                 </div>
-                <div className="text-left">
-                  <p className="text-sm font-semibold text-gray-800">{user?.name}</p>
-                  <p className="text-xs text-gray-400">{user?.email}</p>
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold leading-tight text-slate-200">{user?.name}</span>
+                  <span className="text-xs text-slate-500 leading-tight">{user?.email}</span>
                 </div>
               </div>
               <button 
-                onClick={() => { logout(); toast.success("See you later! 👋"); navigate("/login"); }} 
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-500 hover:bg-red-50 rounded-xl transition-all hover:scale-105"
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-red-500/10 hover:text-red-400 rounded-lg transition-colors border border-slate-700 hover:border-red-500/30"
               >
                 <LogOut className="w-4 h-4" />
                 <span className="hidden sm:inline">Logout</span>
@@ -77,110 +93,140 @@ export default function Dashboard() {
       </nav>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
         
-        {/* Hero Section */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700 rounded-3xl p-8 sm:p-10 text-white shadow-2xl shadow-blue-500/20">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-400/20 rounded-full translate-y-1/2 -translate-x-1/2 blur-3xl"></div>
-          <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-semibold">✨ Welcome back</span>
-              </div>
-              <h2 className="text-3xl sm:text-4xl font-extrabold">{user?.name}!</h2>
-              <p className="text-blue-100 mt-2 text-lg">Ready to manage your organizations today?</p>
+        {/* Welcome Hero Section */}
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative rounded-3xl overflow-hidden bg-slate-800/50 border border-slate-700/50 p-8 sm:p-10 mb-8"
+        >
+          {/* Decorative blur blobs inside hero */}
+          <div className="absolute top-0 right-0 -mt-20 -mr-20 w-[300px] h-[300px] bg-indigo-500/20 rounded-full blur-[80px] pointer-events-none" />
+          <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-[200px] h-[200px] bg-violet-500/20 rounded-full blur-[60px] pointer-events-none" />
+          
+          <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+            <div className="max-w-xl">
+              <h1 className="text-3xl sm:text-4xl font-extrabold text-white mb-2">
+                Hello, <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">{user?.name?.split(' ')?.[0] || 'User'}</span>! 👋
+              </h1>
+              <p className="text-slate-400 text-lg">
+                Manage your IT organizations, collaborate with your team, and grow your community seamlessly.
+              </p>
             </div>
-            <div className="flex-shrink-0">
-              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center">
-                <Globe className="w-10 h-10 sm:w-12 sm:h-12 text-white/80" />
-              </div>
-            </div>
+            <Link 
+              to="/organizations/create" 
+              className="group flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3.5 rounded-xl font-bold shadow-lg shadow-indigo-600/25 transition-all hover:-translate-y-1"
+            >
+              <Plus className="w-5 h-5" />
+              Create Organization
+            </Link>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {stats.map((stat, i) => (
-            <div key={i} className="group relative bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden">
-              <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl ${stat.color} opacity-5 rounded-bl-3xl transition-opacity group-hover:opacity-10`}></div>
-              <div className="flex items-center justify-between mb-4">
-                <div className={`w-12 h-12 rounded-xl ${stat.bg} flex items-center justify-center`}>
-                  <stat.icon className={`w-6 h-6 ${stat.iconColor}`} />
-                </div>
-                <ArrowUpRight className="w-5 h-5 text-gray-300 group-hover:text-blue-500 transition-colors" />
+        {/* Stats Section */}
+        <motion.div 
+          variants={container}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-10"
+        >
+          {stats.map((stat, idx) => (
+            <motion.div 
+              key={idx} 
+              variants={item}
+              className="bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 flex items-center gap-5 hover:bg-slate-800/60 transition-colors group"
+            >
+              <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${stat.bg} ${stat.color} group-hover:scale-110 transition-transform`}>
+                <stat.icon className="w-7 h-7" />
               </div>
-              <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
-              <p className="text-sm text-gray-500 mt-1 font-medium">{stat.label}</p>
-            </div>
+              <div>
+                <p className="text-sm font-medium text-slate-400">{stat.name}</p>
+                <p className="text-3xl font-bold text-white mt-1">{stat.value}</p>
+              </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
 
         {/* Organizations Section */}
-        <div>
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="text-2xl font-bold text-gray-900">Your Organizations</h3>
-              <p className="text-gray-500 text-sm mt-1">Manage all your IT communities</p>
-            </div>
-            <button 
-              onClick={() => navigate("/organizations/create")} 
-              className="btn-primary shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30"
-            >
-              <Plus className="w-5 h-5" /> New Organization
-            </button>
-          </div>
-
-          {organizations.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {organizations.map((org) => (
-                <div 
-                  key={org.id} 
-                  onClick={() => navigate(`/organizations/${org.id}`)} 
-                  className="group bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-2xl hover:border-blue-200 hover:-translate-y-1 transition-all duration-300 cursor-pointer"
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="relative">
-                      <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-indigo-400 rounded-2xl blur-md opacity-30 group-hover:opacity-50 transition-opacity"></div>
-                      <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-2xl shadow-md border border-blue-200/50">
-                        🏢
-                      </div>
-                    </div>
-                    <span className={org.role === "OWNER" ? "badge-owner" : "badge-member"}>
-                      {org.role === "OWNER" ? "👑 Owner" : "👤 Member"}
-                    </span>
-                  </div>
-                  <h4 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">{org.name}</h4>
-                  {org.description && (
-                    <p className="text-gray-500 text-sm line-clamp-2 mb-4 leading-relaxed">{org.description}</p>
-                  )}
-                  <div className="flex items-center justify-between text-xs text-gray-400 pt-4 border-t border-gray-100">
-                    <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> {org.memberCount || 0} members</span>
-                    <span>{new Date(org.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-20 bg-white/60 backdrop-blur-sm rounded-3xl border-2 border-dashed border-gray-200">
-              <div className="relative mx-auto w-28 h-28 mb-6">
-                <div className="absolute inset-0 bg-blue-100 rounded-full blur-2xl opacity-50"></div>
-                <div className="relative w-28 h-28 rounded-full bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center border-2 border-blue-100">
-                  <Building2 className="w-12 h-12 text-blue-300" />
-                </div>
-              </div>
-              <h3 className="text-2xl font-bold text-gray-700 mb-2">No Organizations Yet</h3>
-              <p className="text-gray-400 mb-8 max-w-md mx-auto text-lg">Create your first organization and start building your IT community today!</p>
-              <button 
-                onClick={() => navigate("/organizations/create")} 
-                className="btn-primary text-lg px-8 py-3 shadow-xl shadow-blue-500/20"
-              >
-                <Plus className="w-5 h-5" /> Create Your First Organization
-              </button>
-            </div>
-          )}
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-3">
+            <Building2 className="w-6 h-6 text-indigo-400" />
+            Your Organizations
+          </h2>
         </div>
 
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <Loader2 className="w-10 h-10 text-indigo-500 animate-spin mb-4" />
+            <p className="text-slate-400 font-medium">Loading your workspaces...</p>
+          </div>
+        ) : orgs.length > 0 ? (
+          <motion.div 
+            variants={container}
+            initial="hidden"
+            animate="show"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          >
+            {orgs.map((org) => (
+              <motion.div key={org.id} variants={item}>
+                <Link 
+                  to={`/organizations/${org.id}`}
+                  className="block bg-slate-800/30 border border-slate-700/50 rounded-2xl overflow-hidden hover:bg-slate-800/80 hover:border-indigo-500/50 transition-all duration-300 group hover:-translate-y-1 hover:shadow-2xl hover:shadow-indigo-500/10"
+                >
+                  <div className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
+                        <Building2 className="w-6 h-6" />
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                        org.role === 'OWNER' 
+                          ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' 
+                          : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                      }`}>
+                        {org.role}
+                      </span>
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2 line-clamp-1">{org.name}</h3>
+                    <p className="text-slate-400 text-sm line-clamp-2 mb-6 h-10">
+                      {org.description || "No description provided for this organization."}
+                    </p>
+                    <div className="flex items-center justify-between pt-4 border-t border-slate-700/50">
+                      <div className="flex items-center gap-2 text-slate-400 text-sm font-medium">
+                        <Users className="w-4 h-4" />
+                        <span>{org.memberCount || 1} Members</span>
+                      </div>
+                      <div className="text-indigo-400 group-hover:translate-x-1 transition-transform">
+                        <ArrowRight className="w-5 h-5" />
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </motion.div>
+        ) : (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex flex-col items-center justify-center py-24 text-center bg-slate-800/20 border border-slate-700/50 rounded-3xl border-dashed"
+          >
+            <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mb-6 shadow-inner">
+              <Compass className="w-10 h-10 text-slate-500" />
+            </div>
+            <h3 className="text-2xl font-bold text-slate-200 mb-2">No Organizations Yet</h3>
+            <p className="text-slate-400 max-w-md mb-8">
+              You haven't joined or created any organizations. Get started by creating your first IT community workspace!
+            </p>
+            <Link 
+              to="/organizations/create" 
+              className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3.5 rounded-xl font-bold shadow-lg shadow-indigo-600/25 transition-all flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" />
+              Create Your First Organization
+            </Link>
+          </motion.div>
+        )}
       </main>
     </div>
   );
